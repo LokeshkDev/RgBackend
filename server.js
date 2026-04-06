@@ -72,11 +72,10 @@ const userSchema = new mongoose.Schema({
 }, { timestamps: true });
 
 // Hash password before saving
-userSchema.pre('save', async function(next) {
-  if (!this.isModified('password')) return next();
+userSchema.pre('save', async function() {
+  if (!this.isModified('password')) return;
   const salt = await bcrypt.genSalt(10);
   this.password = await bcrypt.hash(this.password, salt);
-  next();
 });
 
 const locationSchema = new mongoose.Schema({
@@ -270,16 +269,21 @@ app.post('/api/upload', upload.fields([
 app.post('/api/login', async (req, res) => {
   try {
     const { email, password } = req.body;
+    console.log(`📡 IDENTITY HUB: Login attempt for [${email}]`);
     const user = await User.findOne({ email });
     
     if (user) {
       // Identity Hub: Auto-Migration Logic for legacy plain-text passwords
-      const isLegacy = !user.password.startsWith('$2a$');
+      const isLegacy = !user.password.startsWith('$2');
+      console.log(`   - Status: ${isLegacy ? 'Legacy' : 'Secure'}`);
+      
       const isMatch = isLegacy ? (password === user.password) : (await bcrypt.compare(password, user.password));
+      console.log(`   - Verified: ${isMatch}`);
 
       if (isMatch) {
         // Transparently modernize legacy credentials
         if (isLegacy) {
+          console.log(`   - MODERNIZING REGISTRY...`);
           user.password = password; // Triggers the pre-save bcrypt hook
           await user.save();
           console.log(`🛡️ SECURITY HUB: Legacy credentials for [${email}] modernized.`);
