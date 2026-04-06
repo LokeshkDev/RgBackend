@@ -181,15 +181,17 @@ const Booking = mongoose.model('Booking', bookingSchema);
 // --- Auth Security Middlewares ---
 
 const generateToken = (id) => {
-  return jwt.sign({ id }, process.env.JWT_SECRET, { expiresIn: '30d' });
+  const secret = process.env.JWT_SECRET || 'fallback_secret_key_2026';
+  return jwt.sign({ id }, secret, { expiresIn: '30d' });
 };
 
 const protect = async (req, res, next) => {
   let token;
+  const secret = process.env.JWT_SECRET || 'fallback_secret_key_2026';
   if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
     try {
       token = req.headers.authorization.split(' ')[1];
-      const decoded = jwt.verify(token, process.env.JWT_SECRET);
+      const decoded = jwt.verify(token, secret);
       req.user = await User.findById(decoded.id).select('-password');
       if (!req.user) throw new Error('User not found');
       next();
